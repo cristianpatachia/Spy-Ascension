@@ -18,6 +18,7 @@ function Spy:RefreshCurrentList(player, source)
 			local level = "??"
 			local class = "UNKNOWN"
 			local opacity = 1
+			local isPVP = false
 
 			local playerData = SpyPerCharDB.PlayerData[data.player]
 			if playerData then
@@ -26,6 +27,7 @@ function Spy:RefreshCurrentList(player, source)
 					if playerData.isGuess == true and tonumber(playerData.level) < Spy.MaximumPlayerLevel then level = level.."+" end
 				end
 				if playerData.class then class = playerData.class end
+				if playerData.pvp then isPVP = playerData.pvp end
 			end
 
 			local description = level.." "
@@ -41,7 +43,7 @@ function Spy:RefreshCurrentList(player, source)
 				end
 			end
 
-			Spy:SetBar(button, data.player, description, 100, "Class", class, nil, opacity)
+			Spy:SetBar(button, data.player, description, 100, "Class", class, nil, opacity, isPVP)
 			Spy.ButtonName[button] = data.player
 			button = button + 1
 		end
@@ -229,8 +231,8 @@ function Spy:AddPlayerData(name, class, level, race, guild, isEnemy, isGuess, is
 	info.guild = guild
 	info.isEnemy = isEnemy
 	info.isGuess = isGuess
-	-- store PvP flag when known (true/false/nil)
 	info.pvp = isPVP
+
 	SpyPerCharDB.PlayerData[name] = info
 	return SpyPerCharDB.PlayerData[name]
 end
@@ -247,7 +249,6 @@ function Spy:UpdatePlayerData(name, class, level, race, guild, isEnemy, isGuess,
 		if guild ~= nil then playerData.guild = guild end
 		if isEnemy ~= nil then playerData.isEnemy = isEnemy end
 		if isGuess ~= nil then playerData.isGuess = isGuess end
-		-- only update pvp if explicitly provided (don't overwrite unknown)
 		if isPVP ~= nil then playerData.pvp = isPVP end
 	end
 	if playerData then
@@ -387,13 +388,21 @@ function Spy:AlertPlayer(player, source)
 		else
 			if Spy.db.profile.EnableSound then
 				if source == nil or source == Spy.CharacterName then
-					PlaySoundFile("Interface\\AddOns\\Spy\\Sounds\\detected-nearby.wav")
+					if playerData.pvp then
+						PlaySoundFile("Interface\\AddOns\\Spy\\Sounds\\detected-pvp.wav")
+					else
+						PlaySoundFile("Interface\\AddOns\\Spy\\Sounds\\detected-nearby.wav")
+					end
 				end
 			end
 		end
 	elseif Spy.db.profile.EnableSound then
 		if source == nil or source == Spy.CharacterName then
-			PlaySoundFile("Interface\\AddOns\\Spy\\Sounds\\detected-nearby.wav")
+			if playerData.pvp then
+				PlaySoundFile("Interface\\AddOns\\Spy\\Sounds\\detected-pvp.wav")
+			else
+				PlaySoundFile("Interface\\AddOns\\Spy\\Sounds\\detected-nearby.wav")
+			end
 		end
 	end
 end
@@ -420,17 +429,19 @@ function Spy:AnnouncePlayer(player, channel)
 
 	local announce = Spy.db.profile.Announce
 	if channel or announce == "Self" or announce == "LocalDefense" or (announce == "Guild" and GetGuildInfo("player") ~= nil and not Spy.InInstance) or (announce == "Party" and GetNumPartyMembers() > 0) or (announce == "Raid" and UnitInRaid("player")) then
+		local displayPlayer = player
+		if playerData and playerData.pvp == true then displayPlayer = displayPlayer.." <PvP>" end
 		if announce == "Self" and not channel then
 			if isKOS then
-				msg = msg..L["SpySignatureColored"]..L["KillOnSightDetectedColored"]..player.." "
+				msg = msg..L["SpySignatureColored"]..L["KillOnSightDetectedColored"]..displayPlayer.." "
 			else
-				msg = msg..L["SpySignatureColored"]..L["PlayerDetectedColored"]..player.." "
+				msg = msg..L["SpySignatureColored"]..L["PlayerDetectedColored"]..displayPlayer.." "
 			end
 		else
 			if isKOS then
-				msg = msg..L["KillOnSightDetected"]..player.." "
+				msg = msg..L["KillOnSightDetected"]..displayPlayer.." "
 			else
-				msg = msg..L["PlayerDetected"]..player.." "
+				msg = msg..L["PlayerDetected"]..displayPlayer.." "
 			end
 		end
 		if playerData then
@@ -644,7 +655,7 @@ function Spy:RegenerateKOSListFromCentral()
 								playerData.reason[reason] = kosPlayerData.reason[reason]
 							end
 						end
-					if kosPlayerData.pvp ~= nil then playerData.pvp = kosPlayerData.pvp end
+						if kosPlayerData.pvp ~= nil then playerData.pvp = kosPlayerData.pvp end
 					end
 					local characterKOSPlayerData = SpyPerCharDB.KOSData[player]
 					if kosPlayerData.added and (not characterKOSPlayerData or characterKOSPlayerData < kosPlayerData.added) then
@@ -713,7 +724,7 @@ function Spy:ParseMinimapTooltip(tooltip)
 				end
 				newTooltip = newTooltip..text.."|r "..desc
 				if not SpyPerCharDB.IgnoreData[name] and not Spy.InInstance then
-					local detected = Spy:UpdatePlayerData(name, nil, nil, nil, nil, true, nil)
+					local detected = Spy:UpdatePlayerData(name, nil, nil, nil, nil, true, nil, nil)
 					if detected and Spy.db.profile.MinimapTracking then
 						Spy:AddDetected(name, time(), false)
 					end
@@ -773,7 +784,19 @@ function Spy:ParseUnitAbility(analyseSpell, event, player, flags, spellId, spell
 			end
 		end
 
-		Spy:UpdatePlayerData(player, class, level, race, nil, isEnemy, isGuess)
+		local isPVP = nil
+		if flags then
+			local flagNum = flags
+			if type(flagNum) == "string" then flagNum = tonumber(flagNum) end
+			if type(flagNum) == "number" then
+				if COMBATLOG_OBJECT_PVP and bit.band(flagNum, COMBATLOG_OBJECT_PVP) ~= 0 then
+					isPVP = true
+				end
+			end
+		end
+
+		Spy:UpdatePlayerData(player, class, level, race, nil, isEnemy, isGuess, isPVP)
+
 		return learnt, playerData
 	end
 	return learnt, nil

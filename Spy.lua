@@ -1410,7 +1410,7 @@ function Spy:PlayerTargetEvent()
     if UnitIsPlayer("target") and not SpyPerCharDB.IgnoreData[name] then
         local playerData = SpyPerCharDB.PlayerData[name]
 
-        if UnitIsEnemy("player", "target") then
+        if UnitIsEnemy("player", "target") or UnitCanAttack("player", "target") then
             name = strreplace(name, " - ", "-")
 
             local learnt = false
@@ -1428,7 +1428,11 @@ function Spy:PlayerTargetEvent()
                 level = nil
             end
 
-			local isPVP = UnitCanAttack("player", "target")
+			local isPVP = false
+			if UnitCanAttack("player", "target") then
+				isPVP = true
+			end 
+			
 			Spy:UpdatePlayerData(name, class, level, race, guild, true, guess, isPVP)
             if Spy.EnabledInZone then
                 Spy:AddDetected(name, time(), learnt)
@@ -1449,7 +1453,7 @@ function Spy:PlayerMouseoverEvent()
 
     if UnitIsPlayer("mouseover") and not SpyPerCharDB.IgnoreData[name] then
         local playerData = SpyPerCharDB.PlayerData[name]
-        if UnitIsEnemy("player", "mouseover") then
+        if UnitIsEnemy("player", "mouseover") or UnitCanAttack("player", "mouseover") then
             name = strreplace(name, " - ", "-")
 
             local learnt = true
@@ -1467,7 +1471,11 @@ function Spy:PlayerMouseoverEvent()
                 level = nil
             end
 
-			local isPVP = UnitCanAttack("player", "mouseover")
+			local isPVP = false
+			if UnitCanAttack("player", "mouseover") then
+				isPVP = true
+			end
+
 			Spy:UpdatePlayerData(name, class, level, race, guild, true, guess, isPVP)
             if Spy.EnabledInZone then
                 Spy:AddDetected(name, time(), learnt)
@@ -1498,7 +1506,7 @@ function Spy:CombatLogEvent(_, timestamp, event, srcGUID, srcName, srcFlags, dst
 			end
 
 			if not learnt then
-				detected = Spy:UpdatePlayerData(srcName, nil, nil, nil, nil, true, nil)
+				detected = Spy:UpdatePlayerData(srcName, nil, nil, nil, nil, true, nil, nil)
 			end
 
 			if detected then
@@ -1528,7 +1536,7 @@ function Spy:CombatLogEvent(_, timestamp, event, srcGUID, srcName, srcFlags, dst
 			end
 
 			if not learnt then
-				detected = Spy:UpdatePlayerData(dstName, nil, nil, nil, nil, true, nil)
+				detected = Spy:UpdatePlayerData(dstName, nil, nil, nil, nil, true, nil, nil)
 			end
 
 			if detected then

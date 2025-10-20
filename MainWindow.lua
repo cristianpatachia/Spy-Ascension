@@ -528,7 +528,7 @@ function Spy:CreateMainWindow()
 	end
 end
 
-function Spy:SetBar(num, name, desc, value, colorgroup, colorclass, tooltipData, opacity)
+function Spy:SetBar(num, name, desc, value, colorgroup, colorclass, tooltipData, opacity, isPVP)
 	local rowmin = 1
 
 	if num < rowmin or not Spy.MainWindow.Rows[num] then
@@ -537,7 +537,13 @@ function Spy:SetBar(num, name, desc, value, colorgroup, colorclass, tooltipData,
 
 	local Row = Spy.MainWindow.Rows[num]
 	Row.StatusBar:SetValue(value)
-	Row.LeftText:SetText(name)
+	
+	local displayName = name
+	if isPVP then
+		displayName = displayName.." <PvP>"
+	end
+
+	Row.LeftText:SetText(displayName)
 	Row.RightText:SetText(desc)
 	Row.Name = name
 	Row.TooltipData = tooltipData
